@@ -17,7 +17,7 @@
 set -e
 
 PG_VERSION="15"
-GITHUB_REPO="mytonprovider-backend"
+GITHUB_REPO="Russia9/mytonprovider-backend"
 GITHUB_BRANCH="master"
 SCRIPTS_BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/scripts"
 DB_BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/db"
@@ -91,7 +91,8 @@ setup_work_directory() {
         git pull origin master
     else
         echo "Cloning repository..."
-        git clone https://github.com/dearjohndoe/mytonprovider-backend
+        git clone https://github.com/${GITHUB_REPO}
+        cd mytonprovider-backend || exit 1
     fi
 
     print_success "Work directory set up successfully."
