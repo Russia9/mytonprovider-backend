@@ -22,7 +22,7 @@ PG_HOST="${PG_HOST:-127.0.0.1}"
 PG_PORT="${PG_PORT:-5432}"
 
 echo "Initializing database from $SQL_FILE..."
-if PGPASSWORD="$PG_PASSWORD" psql -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" -f "$SQL_FILE"; then
+if PGPASSWORD="$PG_PASSWORD" psql -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" -v pg_user="$PG_USER" -f "$SQL_FILE"; then
     echo "✅ Database initialization completed successfully"
 else
     echo "❌ Database initialization failed"

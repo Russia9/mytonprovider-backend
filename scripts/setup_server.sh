@@ -17,7 +17,7 @@
 set -e
 
 PG_VERSION="15"
-GITHUB_REPO="dearjohndoe/mytonprovider-backend"
+GITHUB_REPO="mytonprovider-backend"
 GITHUB_BRANCH="master"
 SCRIPTS_BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/scripts"
 DB_BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/db"
@@ -54,15 +54,15 @@ check_required_vars() {
         "NEWFRONTENDUSER"
         "NEWUSER_PASSWORD"
     )
-    
+
     local missing_vars=()
-    
+
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var}" ]]; then
             missing_vars+=("$var")
         fi
     done
-    
+
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
         print_error "Missing required environment variables:"
         for var in "${missing_vars[@]}"; do
@@ -93,25 +93,25 @@ setup_work_directory() {
         echo "Cloning repository..."
         git clone https://github.com/dearjohndoe/mytonprovider-backend
     fi
-    
+
     print_success "Work directory set up successfully."
 }
 
 execute_script() {
     local script_name=$1
-    
+
     if [[ ! -f "$script_name" ]]; then
         print_error "Script not found: $script_name"
         exit 1
     fi
-    
+
     local env_vars=""
     local vars_to_pass=(
         "PG_VERSION" "PG_USER" "PG_PASSWORD" "PG_DB"
         "NEWFRONTENDUSER" "WORK_DIR"
         "NEWSUDOUSER" "NEWUSER_PASSWORD" "DOMAIN" "INSTALL_SSL"
     )
-    
+
     for var in "${vars_to_pass[@]}"; do
         if [[ -n "${!var}" ]]; then
             export $var="${!var}"
@@ -126,7 +126,7 @@ execute_script() {
 
 install_deps() {
     print_status "Installing required dependencies..."
-    
+
     apt-get update
     apt-get upgrade -y
     apt-get install -y wget curl gnupg lsb-release git
@@ -152,14 +152,14 @@ get_server_info() {
     if [[ -z "$HOST" ]]; then
         HOST=$(hostname -f)
     fi
-    
+
     print_status "Detected server information:"
     echo "Server IP/Hostname: $HOST"
 }
 
 main() {
     print_status "Starting server setup process..."
-    
+
     if [[ $EUID -ne 0 ]]; then
         print_error "This script must be run as root"
         echo "Please run: sudo $0"
@@ -172,11 +172,11 @@ main() {
     check_required_vars
 
     install_deps
-    
+
     get_server_info
-    
+
     DOMAIN="${DOMAIN:-$HOST}"
-    
+
     print_status "All required environment variables are set"
     echo "Server IP/Hostname: $HOST"
     echo "New sudo user: $NEWSUDOUSER"
@@ -185,33 +185,33 @@ main() {
     echo "PostgreSQL database: $PG_DB"
     echo "Domain/IP: $DOMAIN"
     echo ""
-    
+
     print_status "Step 1: Downloading scripts and configuration files..."
     setup_work_directory
     cd "$WORK_DIR/mytonprovider-backend/scripts" || exit 1
-    
+
     print_status "Step 2: Setting up PostgreSQL..."
     execute_script "psql_setup.sh"
-    
+
     print_status "Step 3: Disabling postgres user remote access..."
     execute_script "ib_disable_postgres_user.sh"
-    
+
     print_status "Step 4: Initializing database..."
     execute_script "init_db.sh"
-    
+
     print_status "Step 5: Setting up Nginx..."
     execute_script "setup_nginx.sh"
-    
+
     print_status "Step 6: Setting up log rotation..."
     execute_script "logs_rotation.sh"
-    
+
     print_status "Step 7: Securing the server..."
     export PASSWORD="$NEWUSER_PASSWORD"  # secure_server.sh expects PASSWORD env var
     execute_script "secure_server.sh"
-    
+
     print_status "Step 8: Building backend application..."
     execute_script "build_backend.sh"
-    
+
     print_status "Step 9: Running the backend application..."
     su - "$NEWSUDOUSER" -c "cd $WORK_DIR/mytonprovider-backend/scripts && bash run.sh"
 
