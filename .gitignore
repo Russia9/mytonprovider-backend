@@ -6,7 +6,6 @@
 /.vscode
 /.vscode/*
 /.DS_Store
-/.env.*
 *.env
 *mtpo-backend
 *.log

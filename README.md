@@ -52,6 +52,46 @@ PG_USER=pguser PG_PASSWORD=secret PG_DB=providerdb NEWFRONTENDUSER=jdfront NEWSU
 
 Upon completion, it will output useful information about server usage.
 
+## Local Development
+
+### Database
+
+Start a local PostgreSQL 15 instance with the schema applied:
+
+```bash
+docker compose up -d
+```
+
+Default credentials (override via env vars):
+
+| Variable | Default |
+|---|---|
+| `PG_USER` | `pguser` |
+| `PG_PASSWORD` | `secret` |
+| `PG_DB` | `providerdb` |
+| `PG_PORT` | `5432` |
+
+```bash
+PG_USER=myuser PG_PASSWORD=mypassword PG_DB=mydb docker compose up -d
+```
+
+To reset the database (drops all data and re-runs init):
+
+```bash
+docker compose down -v && docker compose up -d
+```
+
+### Running the backend
+
+Set the required environment variables and run:
+
+```bash
+DB_HOST=127.0.0.1 DB_PORT=5432 \
+DB_USER=pguser DB_PASSWORD=secret DB_NAME=providerdb \
+MASTER_ADDRESS=<address> TON_CONFIG_URL=<url> \
+go run ./cmd
+```
+
 ## Dev:
 ### VS Code Configuration
 Create `.vscode/launch.json`:
