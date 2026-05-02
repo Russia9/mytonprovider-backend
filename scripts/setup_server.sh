@@ -53,6 +53,7 @@ check_required_vars() {
         "NEWSUDOUSER"
         "NEWFRONTENDUSER"
         "NEWUSER_PASSWORD"
+        "INTERNAL_TOKEN"
     )
 
     local missing_vars=()
@@ -73,6 +74,7 @@ check_required_vars() {
         echo "PG_USER=pguser PG_PASSWORD=secret PG_DB=providerdb \\"
         echo "NEWFRONTENDUSER=frontend \\"
         echo "NEWSUDOUSER=johndoe NEWUSER_PASSWORD=newsecurepassword \\"
+        echo "INTERNAL_TOKEN=\$(openssl rand -hex 32) \\"
         echo "DOMAIN=mytonprovider.org INSTALL_SSL=true \\"
         echo "./setup_server.sh"
         echo ""
@@ -111,6 +113,7 @@ execute_script() {
         "PG_VERSION" "PG_USER" "PG_PASSWORD" "PG_DB"
         "NEWFRONTENDUSER" "WORK_DIR"
         "NEWSUDOUSER" "NEWUSER_PASSWORD" "DOMAIN" "INSTALL_SSL"
+        "INTERNAL_TOKEN"
     )
 
     for var in "${vars_to_pass[@]}"; do
@@ -244,10 +247,11 @@ main() {
     echo "Health check: http://$DOMAIN/health"
     echo "Metrics: http://$DOMAIN/metrics"
     echo ""
-    echo "Backend application:"
+    echo "Coordinator application:"
     echo "Install directory: /opt/provider"
-    echo "Start service: cd /opt/provider && env \$(cat config.env | xargs) ./mtpo-backend >> /var/log/mytonprovider.app/mytonprovider.app.log 2>&1 &"
+    echo "Start service: cd /opt/provider && env \$(grep -v '^#' coordinator.env | xargs) ./coordinator >> /var/log/mytonprovider.app/mytonprovider.app.log 2>&1 &"
     echo "View logs: tail -f /var/log/mytonprovider.app/mytonprovider.app.log"
+    echo "Note: set INTERNAL_TOKEN in /opt/provider/coordinator.env before starting agents."
     echo ""
     echo "Database connection details:"
     echo "Host: $HOST"

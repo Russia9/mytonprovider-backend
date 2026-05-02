@@ -6,6 +6,14 @@ set -e
 
 SQL_FILE="../db/init.sql"
 
+# Source .postgres.env from the repo root if present and vars are not already set.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+POSTGRES_ENV="$SCRIPT_DIR/../.postgres.env"
+if [[ -f "$POSTGRES_ENV" && -z "$PG_USER" ]]; then
+    # shellcheck source=/dev/null
+    source "$POSTGRES_ENV"
+fi
+
 if [[ -z "$PG_USER" || -z "$PG_PASSWORD" || -z "$PG_DB" ]]; then
     echo "❌ Missing required environment variables"
     echo ""

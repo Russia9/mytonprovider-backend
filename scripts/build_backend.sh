@@ -1,13 +1,16 @@
 #!/bin/bash
 
-# This script builds the backend application for the TON provider.
-# Also generates the .env file with necessary configurations.
+# Builds the coordinator binary and generates coordinator.env with necessary configurations.
+
+set -e
 
 cd "$WORK_DIR/mytonprovider-backend/"
 
-go build -buildvcs=false -o mtpo-backend ./cmd
+export PATH=$PATH:/usr/local/go/bin
 
-cat <<EOL > config.env
+go build -buildvcs=false -o coordinator ./cmd/coordinator
+
+cat <<EOL > coordinator.env
 SYSTEM_PORT=9090
 MASTER_ADDRESS=UQB3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d0x0
 TON_CONFIG_URL=https://ton-blockchain.github.io/global.config.json
@@ -19,9 +22,11 @@ DB_USER=${PG_USER}
 DB_PASSWORD=${PG_PASSWORD}
 DB_NAME=${PG_DB}
 SYSTEM_LOG_LEVEL=0
+INTERNAL_TOKEN=${INTERNAL_TOKEN}
 EOL
 
-mv mtpo-backend /opt/provider/
-mv config.env /opt/provider/
+mkdir -p /opt/provider
+mv coordinator /opt/provider/
+mv coordinator.env /opt/provider/
 
-echo "Backend application built and configuration file created successfully."
+echo "Coordinator built and coordinator.env created successfully."

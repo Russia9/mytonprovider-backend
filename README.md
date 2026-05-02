@@ -2,111 +2,142 @@
 
 **[Русская версия](README.ru.md)**
 
-Backend service for mytonprovider.org - a TON Storage providers monitoring service.
+Backend service for mytonprovider.org — a TON Storage providers monitoring service.
 
 ## Description
 
-This backend service:
-- Communicates with storage providers via ADNL protocol
-- Monitors provider performance, availability, do health checks
-- Handles telemetry data from providers
-- Provides API endpoints for frontend
+This backend:
+- Discovers TON Storage providers by scanning the master contract's transaction history
+- Monitors provider availability, performs health checks via ADNL protocol
+- Verifies storage proofs (downloads a random bag piece and validates its Merkle proof)
+- Handles telemetry data submitted by providers
 - Computes provider ratings
-- Collect own metrics via **Prometheus**
+- Exposes REST API endpoints for the frontend
+- Exposes Prometheus metrics
+
+## Architecture
+
+The system runs as two separate binaries:
+
+| Binary | Role |
+|---|---|
+| **coordinator** | Single instance. Owns all DB state, cursor management, TON lite-client calls, and orchestration. |
+| **agent** | N instances. Stateless ADNL/DHT/RLDP worker. No DB connection. |
+
+Agents register with the coordinator on startup and send a heartbeat every 30 s. The coordinator distributes provider ping and storage proof work across registered agents, aggregates results, and writes them to the database.
+
+Both binaries share `INTERNAL_TOKEN` as a shared secret for their HTTP API (`X-Internal-Token` header). Leave it empty to disable authentication (local dev only).
 
 ## Installation & Setup
 
-To get started, you'll need a clean Debian 12 server with root user access.
+### Coordinator server (Debian 12)
 
-1. **Download the server connection script**
-
-Instead of password login, the security script requires using key-based authentication. This script should be run on your local machine, it doesn't require sudo, and will only forward keys for access.
+1. **Forward SSH keys from your local machine**
 
 ```bash
 wget https://raw.githubusercontent.com/dearjohndoe/mytonprovider-backend/refs/heads/master/scripts/init_server_connection.sh
-```
-
-2. **Forward keys and disable password access**
-
-```bash
 USERNAME=root PASSWORD=supersecretpassword HOST=123.45.67.89 bash init_server_connection.sh
 ```
 
-In case of a man-in-the-middle error, you might need to remove known_hosts.
-
-3. **Log into the remote machine and download the installation script**
+2. **Log in and download the setup script**
 
 ```bash
-ssh root@123.45.67.89 # If it asks for a password, the previous step failed.
-
+ssh root@123.45.67.89
 wget https://raw.githubusercontent.com/dearjohndoe/mytonprovider-backend/refs/heads/master/scripts/setup_server.sh
 ```
 
-4. **Run server setup and installation**
-
-This will take a few minutes.
+3. **Run setup**
 
 ```bash
-PG_USER=pguser PG_PASSWORD=secret PG_DB=providerdb NEWFRONTENDUSER=jdfront NEWSUDOUSER=johndoe NEWUSER_PASSWORD=newsecurepassword bash ./setup_server.sh
+PG_USER=pguser PG_PASSWORD=secret PG_DB=providerdb \
+NEWFRONTENDUSER=jdfront \
+NEWSUDOUSER=johndoe NEWUSER_PASSWORD=newsecurepassword \
+INTERNAL_TOKEN=$(openssl rand -hex 32) \
+bash ./setup_server.sh
 ```
 
-Upon completion, it will output useful information about server usage.
+### Agent server (Debian 12)
+
+Run on each additional server that will handle ADNL work:
+
+```bash
+wget https://raw.githubusercontent.com/dearjohndoe/mytonprovider-backend/refs/heads/master/scripts/setup_agent.sh
+COORDINATOR_URL=http://<coordinator-ip>:9090 \
+TON_CONFIG_URL=https://ton-blockchain.github.io/global.config.json \
+INTERNAL_TOKEN=<shared-secret> \
+NEWSUDOUSER=agentuser \
+bash ./setup_agent.sh
+```
+
+Then open the ADNL port (default 16168):
+```bash
+ufw allow 16168/udp
+```
 
 ## Local Development
 
-### Database
+### Env files
 
-Start a local PostgreSQL 15 instance with the schema applied:
+| File | Purpose |
+|---|---|
+| `.postgres.env` | Postgres credentials for `docker compose` and `scripts/init_db.sh` |
+| `.coordinator.env` | All coordinator env vars |
+| `.agent.env` | All agent env vars |
+
+Copy and edit before first run — the defaults work for local dev without changes except setting `INTERNAL_TOKEN` to the same value in both coordinator and agent files.
+
+### Database
 
 ```bash
 docker compose up -d
-```
 
-Default credentials (override via env vars):
-
-| Variable | Default |
-|---|---|
-| `PG_USER` | `pguser` |
-| `PG_PASSWORD` | `secret` |
-| `PG_DB` | `providerdb` |
-| `PG_PORT` | `5432` |
-
-```bash
-PG_USER=myuser PG_PASSWORD=mypassword PG_DB=mydb docker compose up -d
-```
-
-To reset the database (drops all data and re-runs init):
-
-```bash
+# Reset (drops all data)
 docker compose down -v && docker compose up -d
 ```
 
-### Running the backend
-
-Set the required environment variables and run:
+### Running locally
 
 ```bash
-DB_HOST=127.0.0.1 DB_PORT=5432 \
-DB_USER=pguser DB_PASSWORD=secret DB_NAME=providerdb \
-MASTER_ADDRESS=<address> TON_CONFIG_URL=<url> \
-go run ./cmd
+# Coordinator
+env $(grep -v '^#' .coordinator.env | xargs) go run ./cmd/coordinator
+
+# Agent (in a second terminal)
+env $(grep -v '^#' .agent.env | xargs) go run ./cmd/agent
+
+# Second agent on different ports
+AGENT_PORT=9092 AGENT_ADNL_PORT=16169 \
+env $(grep -v '^#' .agent.env | xargs) go run ./cmd/agent
 ```
 
-## Dev:
-### VS Code Configuration
+Use `-tags=debug` on the coordinator to enable CORS headers and OPTIONS handling (needed when running without nginx):
+
+```bash
+env $(grep -v '^#' .coordinator.env | xargs) go run -tags=debug ./cmd/coordinator
+```
+
+### VS Code
+
 Create `.vscode/launch.json`:
 ```json
 {
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Package",
+            "name": "Coordinator",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd",
-            "buildFlags": "-tags=debug",    // to handle OPTIONS queries without nginx when dev
-            "env": {...}
+            "program": "${workspaceFolder}/cmd/coordinator",
+            "buildFlags": "-tags=debug",
+            "env": {}
+        },
+        {
+            "name": "Agent",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/agent",
+            "env": {}
         }
     ]
 }
@@ -115,37 +146,46 @@ Create `.vscode/launch.json`:
 ## Project Structure
 
 ```
-├── cmd/                   # Application entry point, configs, inits
-├── pkg/                   # Application packages
-│   ├── cache/             # Custom cache
-│   ├── httpServer/        # Fiber server handlers
-│   ├── models/            # DB and API data models
-│   ├── repositories/      # All work with postgres here
-│   ├── services/          # Business logic
-│   ├── tonclient/         # TON blockchain client, wrap some usefull functions
-│   └── workers/           # Workers
-├── db/                    # Database schema
-├── scripts/               # Setup and utility scripts
+cmd/
+├── coordinator/       # Coordinator binary (DB, TON, orchestration)
+└── agent/             # Agent binary (ADNL/DHT/RLDP)
+pkg/
+├── agentClient/       # HTTP client for coordinator→agent calls (wire types, retry logic)
+├── agentRegistry/     # In-memory agent registry with heartbeat eviction
+├── agentServer/       # Agent HTTP handlers and ADNL/proof-check workers
+├── cache/             # Simple TTL cache
+├── clients/           # External clients (TON lite-client, ifconfig.co)
+├── httpServer/        # Fiber HTTP handlers (public API + internal agent routes)
+├── models/            # DB and API types
+├── repositories/      # All Postgres queries
+├── services/          # Business logic (providers search, telemetry)
+└── workers/           # Background worker harness and individual workers
+db/                    # init.sql — single migration file
+scripts/               # Server setup and utility scripts
 ```
 
 ## API Endpoints
 
-The server provides REST API endpoints for:
-- Telemetry data collection
-- Provider info and filters tool
-- Metrics
+Public (served by coordinator):
+- `POST /api/v1/providers/search` — filtered provider list
+- `GET  /api/v1/providers/filters` — filter range metadata
+- `POST /api/v1/providers` — telemetry ingestion (from provider nodes)
+- `GET  /api/v1/providers` — latest telemetry feed (auth required)
+- `POST /api/v1/contracts/statuses` — storage contract proof status
+- `POST /api/v1/benchmarks` — benchmark ingestion (from provider nodes)
+- `GET  /metrics` — Prometheus metrics (auth required)
+- `GET  /health`
 
-## Workers
+Internal (coordinator, authenticated with `X-Internal-Token`):
+- `POST /internal/v1/agents` — agent registration
+- `POST /internal/v1/agents/:id/heartbeat`
 
-The application runs several background workers:
-- **Providers Master**: Manages provider lifecycle and health checks
-- **Telemetry Worker**: Processes incoming telemetry data
-- **Cleaner Worker**: Maintains database hygiene and cleanup
+Internal (agent, authenticated with `X-Internal-Token`):
+- `POST /internal/v1/workers/ping-providers`
+- `POST /internal/v1/workers/check-proofs`
 
 ## License
- 
+
 Apache-2.0
-
-
 
 This project was created by order of a TON Foundation community member.
