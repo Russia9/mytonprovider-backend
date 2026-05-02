@@ -173,6 +173,43 @@ func (h *handler) health(c *fiber.Ctx) error {
 	return okHandler(c)
 }
 
+// --- internal agent API ---
+
+type registerAgentRequest struct {
+	URL      string `json:"url"`
+	ADNLPort string `json:"adnl_port"`
+}
+
+func (h *handler) internalTokenMiddleware(c *fiber.Ctx) error {
+	if c.Get("X-Internal-Token") != h.internalToken {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+	return c.Next()
+}
+
+func (h *handler) registerAgent(c *fiber.Ctx) error {
+	var req registerAgentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	if req.URL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "url is required"})
+	}
+
+	id := h.agentReg.Register(req.URL, req.ADNLPort)
+	h.logger.Info("agent registered", "id", id, "url", req.URL)
+
+	return c.JSON(fiber.Map{"id": id})
+}
+
+func (h *handler) agentHeartbeat(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if !h.agentReg.Heartbeat(id) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "agent not found"})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *handler) metrics(c *fiber.Ctx) error {
 	m := promhttp.Handler()
 

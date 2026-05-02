@@ -16,53 +16,43 @@ type metricsMiddleware struct {
 
 func (m *metricsMiddleware) CollectNewProviders(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"CollectNewProviders", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"CollectNewProviders", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())
 	return m.worker.CollectNewProviders(ctx)
 }
 
-func (m *metricsMiddleware) UpdateKnownProviders(ctx context.Context) (interval time.Duration, err error) {
+func (m *metricsMiddleware) DistributeProviderPing(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"UpdateKnownProviders", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"DistributeProviderPing", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())
-	return m.worker.UpdateKnownProviders(ctx)
+	return m.worker.DistributeProviderPing(ctx)
 }
 
 func (m *metricsMiddleware) CollectProvidersNewStorageContracts(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"CollectProvidersNewStorageContracts", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"CollectProvidersNewStorageContracts", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())
 	return m.worker.CollectProvidersNewStorageContracts(ctx)
 }
 
-func (m *metricsMiddleware) StoreProof(ctx context.Context) (interval time.Duration, err error) {
+func (m *metricsMiddleware) DistributeStoreProof(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"StoreProof", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"DistributeStoreProof", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())
-	return m.worker.StoreProof(ctx)
+	return m.worker.DistributeStoreProof(ctx)
 }
 
 func (m *metricsMiddleware) UpdateUptime(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"UpdateUptime", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"UpdateUptime", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())
@@ -71,9 +61,7 @@ func (m *metricsMiddleware) UpdateUptime(ctx context.Context) (interval time.Dur
 
 func (m *metricsMiddleware) UpdateRating(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"UpdateRating", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"UpdateRating", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())
@@ -82,9 +70,7 @@ func (m *metricsMiddleware) UpdateRating(ctx context.Context) (interval time.Dur
 
 func (m *metricsMiddleware) UpdateIPInfo(ctx context.Context) (interval time.Duration, err error) {
 	defer func(s time.Time) {
-		labels := []string{
-			"UpdateIPInfo", strconv.FormatBool(err != nil),
-		}
+		labels := []string{"UpdateIPInfo", strconv.FormatBool(err != nil)}
 		m.reqCount.WithLabelValues(labels...).Add(1)
 		m.reqDuration.WithLabelValues(labels...).Observe(time.Since(s).Seconds())
 	}(time.Now())

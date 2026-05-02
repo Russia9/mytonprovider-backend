@@ -31,6 +31,13 @@ func (h *handler) RegisterRoutes() {
 	h.server.Get("/health", h.health)
 	h.server.Get("/metrics", h.authorizationMiddleware, h.metrics)
 
+	internal := h.server.Group("/internal/v1", h.internalTokenMiddleware)
+	{
+		agents := internal.Group("/agents")
+		agents.Post("", h.registerAgent)
+		agents.Post("/:id/heartbeat", h.agentHeartbeat)
+	}
+
 	apiv1 := h.server.Group("/api/v1", h.loggerMiddleware)
 	{
 		{

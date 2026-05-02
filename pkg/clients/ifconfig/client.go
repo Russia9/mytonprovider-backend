@@ -30,7 +30,11 @@ func (c *client) GetIPInfo(ctx context.Context, ip string) (*Info, error) {
 		log.Error("failed to execute request", "error", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Error("failed to close response body", "error", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Error("unexpected response status", "status", resp.Status)

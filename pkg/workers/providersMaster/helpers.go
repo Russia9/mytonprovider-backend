@@ -2,30 +2,12 @@ package providersmaster
 
 import (
 	"math/big"
-	"strconv"
-	"sync"
 	"time"
 
 	"github.com/xssnick/tonutils-go/tlb"
 
 	tonclient "mytonprovider-backend/pkg/clients/ton"
-	"mytonprovider-backend/pkg/constants"
-	"mytonprovider-backend/pkg/models/db"
 )
-
-func fillStatuses(bagsStatuses *sync.Map, contracts []db.ContractToProviderRelation, reason constants.ReasonCode) {
-	for _, sc := range contracts {
-		bagsStatuses.Store(sc.ProviderAddress+sc.BagID, db.ContractProofsCheck{
-			ContractAddress: sc.Address,
-			ProviderAddress: sc.ProviderAddress,
-			Reason:          reason,
-		})
-	}
-}
-
-func getKey(bagID, ip string, port int32) string {
-	return ip + ":" + strconv.Itoa(int(port)) + "/" + bagID
-}
 
 func isRemovedByLowBalance(bagSize *big.Int, provider tonclient.Provider, contract tonclient.StorageContractProviders) bool {
 	var storageFee = tlb.MustFromTON("0.05").Nano()
@@ -36,14 +18,11 @@ func isRemovedByLowBalance(bagSize *big.Int, provider tonclient.Provider, contra
 	bounty = bounty.Add(bounty, storageFee)
 
 	if new(big.Int).SetUint64(contract.Balance).Cmp(bounty) < 0 {
-		var deadline int64
-		fresh := provider.LastProofTime.Unix() <= 0
-		if fresh {
+		if provider.LastProofTime.Unix() <= 0 {
 			return false
-		} else {
-			deadline = provider.LastProofTime.Unix() + int64(provider.MaxSpan) + 3600
 		}
 
+		deadline := provider.LastProofTime.Unix() + int64(provider.MaxSpan) + 3600
 		if time.Now().Unix() > deadline {
 			return true
 		}

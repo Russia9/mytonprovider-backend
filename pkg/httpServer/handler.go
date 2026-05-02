@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	agentregistry "mytonprovider-backend/pkg/agentRegistry"
 	v1 "mytonprovider-backend/pkg/models/api/v1"
 )
 
@@ -23,17 +24,21 @@ type errorResponse struct {
 }
 
 type handler struct {
-	server       *fiber.App
-	logger       *slog.Logger
-	providers    providers
-	namespace    string
-	subsystem    string
-	accessTokens map[string]struct{}
+	server        *fiber.App
+	logger        *slog.Logger
+	providers     providers
+	agentReg      *agentregistry.Registry
+	internalToken string
+	namespace     string
+	subsystem     string
+	accessTokens  map[string]struct{}
 }
 
 func New(
 	server *fiber.App,
 	providers providers,
+	agentReg *agentregistry.Registry,
+	internalToken string,
 	accessTokens []string,
 	namespace string,
 	subsystem string,
@@ -44,14 +49,14 @@ func New(
 		accessTokensMap[token] = struct{}{}
 	}
 
-	h := &handler{
-		server:       server,
-		providers:    providers,
-		namespace:    namespace,
-		subsystem:    subsystem,
-		accessTokens: accessTokensMap,
-		logger:       logger,
+	return &handler{
+		server:        server,
+		providers:     providers,
+		agentReg:      agentReg,
+		internalToken: internalToken,
+		namespace:     namespace,
+		subsystem:     subsystem,
+		accessTokens:  accessTokensMap,
+		logger:        logger,
 	}
-
-	return h
 }

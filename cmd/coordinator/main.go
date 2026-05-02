@@ -13,6 +13,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/prometheus/client_golang/prometheus"
 
+	agentclient "mytonprovider-backend/pkg/agentClient"
+	agentregistry "mytonprovider-backend/pkg/agentRegistry"
 	simpleCache "mytonprovider-backend/pkg/cache"
 	"mytonprovider-backend/pkg/clients/ifconfig"
 	tonclient "mytonprovider-backend/pkg/clients/ton"
@@ -33,7 +35,6 @@ func main() {
 }
 
 func run() (err error) {
-	// Tools
 	config := loadConfig()
 	if config == nil {
 		fmt.Println("failed to load configuration")
@@ -119,12 +120,6 @@ func run() (err error) {
 
 	ipinfo := ifconfig.NewClient(logger)
 
-	dhtClient, providerClient, err := newProviderClient(context.Background(), config.TON.ConfigURL, config.System.ADNLPort, config.System.Key)
-	if err != nil {
-		logger.Error("failed to create provider client", slog.String("error", err.Error()))
-		return
-	}
-
 	// Postgres
 	connPool, err := connectPostgres(context.Background(), config, logger)
 	if err != nil {
@@ -132,12 +127,16 @@ func run() (err error) {
 		return
 	}
 
-	// Database
+	// Repositories
 	providersRepo := providersRepository.NewRepository(connPool)
 	providersRepo = providersRepository.NewMetrics(dbRequestsCount, dbRequestsDuration, providersRepo)
 
 	systemRepo := systemRepository.NewRepository(connPool)
 	systemRepo = systemRepository.NewMetrics(dbRequestsCount, dbRequestsDuration, systemRepo)
+
+	// Agent registry and client
+	agentReg := agentregistry.New()
+	agentClient := agentclient.New(config.System.InternalToken, logger)
 
 	// Workers
 	telemetryWorker := telemetry.NewWorker(providersRepo, telemetryCache, benchmarksCache, providersNetLoad, logger)
@@ -147,9 +146,9 @@ func run() (err error) {
 		providersRepo,
 		systemRepo,
 		ton,
-		providerClient,
-		dhtClient,
 		ipinfo,
+		agentClient,
+		agentReg,
 		config.TON.MasterAddress,
 		config.TON.BatchSize,
 		logger,
@@ -160,9 +159,9 @@ func run() (err error) {
 	cleanerWorker = cleaner.NewMetrics(workersRunCount, workersRunDuration, cleanerWorker)
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
-	workers := workers.NewWorkers(telemetryWorker, providersMasterWorker, cleanerWorker, logger)
+	workerSet := workers.NewWorkers(telemetryWorker, providersMasterWorker, cleanerWorker, logger)
 	go func() {
-		if wErr := workers.Start(cancelCtx); wErr != nil {
+		if wErr := workerSet.Start(cancelCtx); wErr != nil {
 			logger.Error("failed to start workers", slog.String("error", wErr.Error()))
 			err = wErr
 			return
@@ -179,6 +178,8 @@ func run() (err error) {
 	server := httpServer.New(
 		app,
 		providersService,
+		agentReg,
+		config.System.InternalToken,
 		accessTokens,
 		config.Metrics.Namespace,
 		config.Metrics.ServerSubsystem,

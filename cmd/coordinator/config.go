@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/ed25519"
 	"log"
 	"log/slog"
 
@@ -16,19 +15,18 @@ var logLevels = map[uint8]slog.Level{
 }
 
 type System struct {
-	Port             string             `env:"SYSTEM_PORT" envDefault:"9090"`
-	ADNLPort         string             `env:"SYSTEM_ADNL_PORT" envDefault:"16167"`
-	AccessTokens     string             `env:"SYSTEM_ACCESS_TOKENS" envDefault:""`
-	Key              ed25519.PrivateKey `env:"SYSTEM_KEY" required:"false"`
-	LogLevel         uint8              `env:"SYSTEM_LOG_LEVEL" envDefault:"1"` // 0 - debug, 1 - info, 2 - warn, 3 - error
-	StoreHistoryDays int                `env:"SYSTEM_STORE_HISTORY_DAYS" envDefault:"90"`
+	Port              string `env:"SYSTEM_PORT" envDefault:"9090"`
+	AccessTokens      string `env:"SYSTEM_ACCESS_TOKENS" envDefault:""`
+	InternalToken     string `env:"INTERNAL_TOKEN" envDefault:""`
+	LogLevel          uint8  `env:"SYSTEM_LOG_LEVEL" envDefault:"1"`
+	StoreHistoryDays  int    `env:"SYSTEM_STORE_HISTORY_DAYS" envDefault:"90"`
 }
 
 type Metrics struct {
-	Namespace        string `env:"NAMESPACE" default:"ton-storage"`
-	ServerSubsystem  string `env:"SERVER_SUBSYSTEM" default:"mtpo-server"`
-	WorkersSubsystem string `env:"WORKERS_SUBSYSTEM" default:"mtpo-workers"`
-	DbSubsystem      string `env:"DB_SUBSYSTEM" default:"mtpo-db"`
+	Namespace        string `env:"NAMESPACE" envDefault:"ton-storage"`
+	ServerSubsystem  string `env:"SERVER_SUBSYSTEM" envDefault:"mtpo-server"`
+	WorkersSubsystem string `env:"WORKERS_SUBSYSTEM" envDefault:"mtpo-workers"`
+	DbSubsystem      string `env:"DB_SUBSYSTEM" envDefault:"mtpo-db"`
 }
 
 type TON struct {
@@ -66,12 +64,5 @@ func loadConfig() *Config {
 	if err := env.Parse(&cfg.TON); err != nil {
 		log.Fatalf("Failed to parse TON config: %v", err)
 	}
-
-	if cfg.System.Key == nil {
-		_, priv, _ := ed25519.GenerateKey(nil)
-		key := priv.Seed()
-		cfg.System.Key = ed25519.NewKeyFromSeed(key)
-	}
-
 	return cfg
 }
