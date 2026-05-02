@@ -54,7 +54,7 @@ func run() error {
 	h.RegisterRoutes(app)
 
 	// Register with coordinator and start heartbeat.
-	agentURL := fmt.Sprintf("http://0.0.0.0:%s", cfg.Port)
+	agentURL := fmt.Sprintf("http://%s:%s", cfg.Host, cfg.Port)
 	agentID, err := registerWithCoordinator(cfg, agentURL)
 	if err != nil {
 		logger.Error("failed to register with coordinator", slog.String("error", err.Error()))

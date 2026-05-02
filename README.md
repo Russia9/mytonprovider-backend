@@ -65,6 +65,7 @@ wget https://raw.githubusercontent.com/dearjohndoe/mytonprovider-backend/refs/he
 COORDINATOR_URL=http://<coordinator-host> \
 TON_CONFIG_URL=https://ton-blockchain.github.io/global.config.json \
 INTERNAL_TOKEN=<shared-secret> \
+AGENT_HOST=<public-agent-host-or-ip> \
 NEWSUDOUSER=agentuser \
 bash ./setup_agent.sh
 ```
