@@ -59,7 +59,7 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        
+
         # Timeouts
         proxy_connect_timeout 30s;
         proxy_send_timeout 30s;
@@ -72,6 +72,15 @@ server {
         add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, X-Requested-With' always;
     }
 
+    # Internal API for agent communication
+    location /internal {
+        proxy_pass http://localhost:9090;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     # Health check endpoint
     location /health {
         proxy_pass http://localhost:9090;
@@ -79,14 +88,14 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        
+
         # No caching for health checks
         add_header Cache-Control "no-cache, no-store, must-revalidate";
         add_header Pragma "no-cache";
         add_header Expires "0";
     }
 
-    location /metrics {        
+    location /metrics {
         proxy_pass http://localhost:9090;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -97,7 +106,7 @@ server {
     # Static files
     location / {
         try_files \$uri \$uri/ =404;
-        
+
         # Cache static files
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
             expires 1y;
@@ -130,10 +139,10 @@ systemctl restart nginx
 install_ssl() {
     echo "Installing SSL certificate with Let's Encrypt..."
     apt-get install -y certbot python3-certbot-nginx
-    
+
     # Generate SSL certificate
     certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email admin@"$DOMAIN" --redirect
-    
+
     # Set up automatic renewal
     (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
 }

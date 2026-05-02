@@ -62,14 +62,14 @@ bash ./setup_server.sh
 
 ```bash
 wget https://raw.githubusercontent.com/dearjohndoe/mytonprovider-backend/refs/heads/master/scripts/setup_agent.sh
-COORDINATOR_URL=http://<coordinator-ip>:9090 \
+COORDINATOR_URL=http://<coordinator-host> \
 TON_CONFIG_URL=https://ton-blockchain.github.io/global.config.json \
 INTERNAL_TOKEN=<shared-secret> \
 NEWSUDOUSER=agentuser \
 bash ./setup_agent.sh
 ```
 
-Затем открыть ADNL-порт (по умолчанию 16168):
+Затем открыть ADNL-порт при необходимости (по умолчанию 16168):
 ```bash
 ufw allow 16168/udp
 ```
