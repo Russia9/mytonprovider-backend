@@ -16,7 +16,7 @@
 #   AGENT_HOST=""            host/IP the coordinator should use to reach the agent
 #   AGENT_PORT=9091          HTTP port the agent listens on
 #   AGENT_ADNL_PORT=16168    UDP port for ADNL P2P traffic
-#   NEWSUDOUSER=""           OS user to run the agent (defaults to root if unset)
+#   NEWSUDOUSER=""           OS user to run the agent; created if missing
 #   SYSTEM_LOG_LEVEL=0       0=debug 1=info 2=warn 3=error
 
 set -e
@@ -42,6 +42,20 @@ NC='\033[0m'
 print_status()  { echo -e "${BLUE}[INFO]${NC} $1"; }
 print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+ensure_runtime_user() {
+    if [[ -z "$NEWSUDOUSER" ]]; then
+        return 0
+    fi
+
+    if id -u "$NEWSUDOUSER" >/dev/null 2>&1; then
+        print_status "Using existing runtime user: $NEWSUDOUSER"
+        return 0
+    fi
+
+    print_status "Creating runtime user: $NEWSUDOUSER"
+    adduser --system --group --no-create-home "$NEWSUDOUSER"
+}
 
 # ── Guards ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +138,12 @@ AGENT_ADNL_PORT=${AGENT_ADNL_PORT}
 SYSTEM_LOG_LEVEL=${SYSTEM_LOG_LEVEL}
 EOL
 chmod 600 "$INSTALL_DIR/agent.env"
+
+ensure_runtime_user
+
+if [[ -n "$NEWSUDOUSER" ]]; then
+    chown -R "$NEWSUDOUSER:$NEWSUDOUSER" "$INSTALL_DIR"
+fi
 
 # ── Systemd service ───────────────────────────────────────────────────────────
 
